@@ -1,19 +1,24 @@
 ---
-name: xiaolongxia_v4
-description: 小龙虾 A 股全域情报 SKILL v4.0 — 龙虾雷达项目的共享方法论，被 T1-T5 任务调用
-version: 4.0.0
-date: 2026-04-24
-trigger: 由 T1/T2/T3/T4/T5 任务在 prompt 中显式引用并执行其中规则
-依赖:
-  - daily_stock_analysis 本地 API: http://127.0.0.1:8000  （analysis/ 和 stocks/ 模块）
-  - AkShare ≥ 1.18 （市场扫描类数据，因 DSA 没有 /market/* 接口）
-  - DeepSeek API（主推理）
-  - MiniMax 搜索引擎（综合搜索时使用）
-  - 飞书 Webhook（推送出口）
-关联文档:
-  - MASTER_PROMPT_龙虾雷达_v1.0.md
-  - BLOCKERS.md（必读 #2 - DSA 接口现实差异；#3 - 代理处理）
+name: lobster-skill
+description: LobsterRadar A股全域情报系统 - 消息情报+数据融合+反向求证，专为打板策略设计
+version: "4.0.0"
+author: Wallace
+trigger_keywords:
+  - 龙虾雷达
+  - 股票分析
+  - 分析
+  - 板块
+  - 涨停
+  - 情报
+  - 打板
+  - A股
+category: finance
+tags:
+  - a-stock
+  - trading
+  - sentiment-analysis
 ---
+
 
 # 🦞 小龙虾 SKILL v4.0
 
