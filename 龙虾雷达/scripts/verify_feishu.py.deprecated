@@ -1,0 +1,107 @@
+"""
+龙虾雷达 - 飞书 Webhook 验证脚本
+========================================
+两步验证：
+  1) 文本消息 - 验证最基础推送
+  2) 富文本卡片 - 验证 T1/T4 输出格式渲染正常
+
+用法：
+  set FEISHU_WEBHOOK=https://open.feishu.cn/open-apis/bot/v2/hook/xxxxx
+  python scripts/verify_feishu.py
+
+或者直接编辑 config/feishu_webhook.txt 填入 URL（脚本会自动读）
+"""
+import os
+import sys
+import json
+from pathlib import Path
+
+# 关掉本地代理 (Wallace 装了 Clash, Global 模式会把飞书也代理坏)
+os.environ["NO_PROXY"] = "*"
+os.environ["no_proxy"] = "*"
+
+try:
+    import requests
+except ImportError:
+    print("[FAIL] 缺少 requests 库, 请: pip install requests", file=sys.stderr)
+    sys.exit(1)
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+WEBHOOK_FILE = PROJECT_ROOT / "config" / "feishu_webhook.txt"
+
+
+def load_webhook() -> str:
+    url = os.environ.get("FEISHU_WEBHOOK", "").strip()
+    if url:
+        return url
+    if WEBHOOK_FILE.exists():
+        url = WEBHOOK_FILE.read_text(encoding="utf-8").strip()
+        if url and not url.startswith("#"):
+            return url
+    print("[FAIL] 没找到 Webhook URL", file=sys.stderr)
+    print(f"  方式1: set FEISHU_WEBHOOK=https://open.feishu.cn/...", file=sys.stderr)
+    print(f"  方式2: 把 URL 写入 {WEBHOOK_FILE}", file=sys.stderr)
+    sys.exit(2)
+
+
+def _session() -> "requests.Session":
+    """统一返回禁代理的 Session, 避免 trust_env 读到系统 Clash"""
+    s = requests.Session()
+    s.trust_env = False
+    return s
+
+
+def test_text(webhook: str) -> bool:
+    payload = {
+        "msg_type": "text",
+        "content": {"text": "🦞 龙虾雷达连接测试 - 文本消息"}
+    }
+    try:
+        r = _session().post(webhook, json=payload, timeout=10)
+        ok = r.status_code == 200 and r.json().get("StatusCode", 0) == 0
+        print(f"[{'OK' if ok else 'FAIL'}] 文本消息: HTTP {r.status_code} | {r.text[:200]}")
+        return ok
+    except Exception as e:
+        print(f"[FAIL] 文本消息异常: {e}")
+        return False
+
+
+def test_card(webhook: str) -> bool:
+    payload = {
+        "msg_type": "interactive",
+        "card": {
+            "header": {
+                "title": {"tag": "plain_text", "content": "🦞 龙虾雷达 - 测试卡片"},
+                "template": "blue"
+            },
+            "elements": [
+                {"tag": "div", "text": {"tag": "lark_md",
+                    "content": "**测试**：飞书富文本卡片渲染正常\n\n如果你看到这条消息，说明 T1/T4 的卡片输出可以正常工作。"}},
+                {"tag": "hr"},
+                {"tag": "div", "text": {"tag": "lark_md",
+                    "content": "**测试时间**: 启动后下个交易日即可投入使用\n**版本**: 龙虾雷达 v1.0"}},
+            ]
+        }
+    }
+    try:
+        r = _session().post(webhook, json=payload, timeout=10)
+        ok = r.status_code == 200 and r.json().get("StatusCode", 0) == 0
+        print(f"[{'OK' if ok else 'FAIL'}] 卡片消息: HTTP {r.status_code} | {r.text[:200]}")
+        return ok
+    except Exception as e:
+        print(f"[FAIL] 卡片消息异常: {e}")
+        return False
+
+
+if __name__ == "__main__":
+    webhook = load_webhook()
+    print(f"使用 Webhook: {webhook[:60]}...\n")
+    r1 = test_text(webhook)
+    r2 = test_card(webhook)
+    print()
+    if r1 and r2:
+        print("[OK] 飞书推送通道完全打通, M1.Step1.3 验收通过")
+        sys.exit(0)
+    else:
+        print("[FAIL] 至少一项失败, 请检查: (1) URL 是否正确 (2) 群是否还在 (3) 安全设置是否拦截")
+        sys.exit(1)
